@@ -1,21 +1,26 @@
 import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Scanner;
 
 public class Main {
-	static String				VERSION		= "1.41";
+	static String				VERSION		= "0.01";
 	
 	static boolean				DEBUG		= false;
 	static String				SERVER		= "irc.freenode.net";
 	static int					PORT		= 6667;
-	static String				NICK		= "buttbott";
+	static String				NICK		= "infobott";
 	static String				OWNER		= "linkxs";
 	static String				USER		= NICK
-													+ " 0 * :Ima bot you in the mouth! ("
+													+ " 0 * :I'm a nice informative bot! ("
 													+ OWNER + ")";
 	static ArrayList<String>	CHANNELS	= new ArrayList<String>();
+	
+	static String				FILE		= "infofile.txt";
 	
 	static Socket				cs			= null;
 	static private Scanner		sin			= null;
@@ -23,14 +28,13 @@ public class Main {
 	
 	public static void main(String args[]) {
 		if (DEBUG) {
-			CHANNELS.add("#testgradius");
+			CHANNELS.add("#linkxs");
 			CHANNELS.add("#botters-test");
 			CHANNELS.add("##wrccdc");
 			startMe();
 		}
 		if (args.length < 1 && !DEBUG)
-			System.out
-					.println("Wrong usage.\n\tjava -jar imabot.jar [channel]");
+			System.out.println("Wrong usage.\n\tjava -jar *.jar [channel]");
 		else if (args.length >= 1) {
 			try {
 				for (int i = 0; i < args.length; i++) {
@@ -39,8 +43,7 @@ public class Main {
 				while (9000 < 90001)
 					startMe();
 			} catch (Exception e) {
-				System.out
-						.println("Wrong usage.\n\tjava -jar imabot.jar [channel]");
+				System.out.println("Wrong usage.\n\tjava -jar *.jar [channel]");
 			}
 		}
 	}
@@ -73,6 +76,8 @@ public class Main {
 			while (true) {
 				String tempLine = sin.nextLine();
 				String sourceChan = "linkxs";
+				String sourceNick = tempLine.substring(tempLine.indexOf(":"),
+						tempLine.indexOf("!"));
 				try {
 					sourceChan = tempLine.substring(
 							tempLine.indexOf("PRIVMSG ") + 8,
@@ -83,28 +88,27 @@ public class Main {
 				if (tempLine.contains("PING")) {
 					tempLine.replace("PING", "PONG");
 					sendToIRC(tempLine + "\r\n");
-				} else if (tempLine.contains("buttbott :")) {
-					if (tempLine.contains("buttbott :VERSION")
-							|| tempLine.contains("buttbott :version")) {
+				} else if (tempLine.contains("infobott :")) {
+					if (tempLine.contains("infobott :VERSION")
+							|| tempLine.contains("infobott :version")) {
 						sendVersion(tempLine
 								.substring(1, tempLine.indexOf('!')));
 					}
-					
 				} else if (tempLine.contains(" :&")) {
 					if (tempLine
 							.startsWith(":linkxs!linkxs@cpe-75-80-186-73.san.res.rr.com")) {
 						System.err.println(" >>> Obey the master! Outcome: "
-								+ privelegedExecute(tempLine.substring(tempLine
-										.indexOf('&')), sourceChan));
+								+ privelegedExecute(tempLine, tempLine
+										.substring(tempLine.indexOf('&')),
+										sourceChan, sourceNick));
 					} else {
-						System.err.println(" >>> Obey the master! Outcome: "
-								+ unPrivedExec(tempLine.substring(tempLine
-										.indexOf('&')), sourceChan));
+						System.err.println(" >>> Not the master! Outcome: "
+								+ unPrivedExec(tempLine, tempLine
+										.substring(tempLine.indexOf('&')),
+										sourceChan, sourceNick));
 						sendToIRC("PRIVMSG " + sourceChan
 								+ " :You're not my real mom!\r\n");
 					}
-				} else if (tempLine.contains(":who is ")) {
-					replyFaggot(tempLine);
 				}
 			}
 		} catch (Exception e) {
@@ -113,13 +117,22 @@ public class Main {
 		return false;
 	}
 	
-	static boolean unPrivedExec(String command, String sourceChan) {
+	static boolean unPrivedExec(String tempLine, String command,
+			String sourceChan, String sourceNick) {
 		if (command.contains("version") || command.contains("VERSION"))
 			return sendVersion(sourceChan);
-		else if (command.contains("usage") || command.contains("USAGE")
-				|| command.contains("help") || command.contains("HELP")
-				|| command.contains("halp") || command.contains("HALP"))
+		else if (command.contains("info show all"))
+			return listAllInfo(sourceNick);
+		else if (command.contains("info show "))
+			return listInfo(tempLine.substring(
+					tempLine.indexOf("info show ") + 10,
+					tempLine.indexOf(' ', tempLine.indexOf("info show ") + 10)));
+		else
 			return sendUsage(sourceChan);
+	}
+	
+	static boolean listInfo(String desciptor) {
+		// TODO Auto-generated method stub
 		return false;
 	}
 	
@@ -128,7 +141,7 @@ public class Main {
 			System.err.println(" >>> Printing usage to " + sourceChan);
 			sendToIRC("PRIVMSG "
 					+ sourceChan
-					+ " :I can do so many things! &quit, &restart, &version, &halp, who is [nick].\r\n");
+					+ " :I can do so many things! &quit, &restart, &version, &halp, &info show all, &info show [descriptor], &info add [descriptor] - [link].\r\n");
 			return true;
 		} catch (Exception e) {
 			System.err.println("Problems in sendUsage");
@@ -136,7 +149,8 @@ public class Main {
 		return false;
 	}
 	
-	static boolean privelegedExecute(String command, String sourceChan) {
+	static boolean privelegedExecute(String tempLine, String command,
+			String sourceChan, String sourceNick) {
 		System.err.println(" >>> Command is " + command);
 		if (command.contains("quit")) {
 			try {
@@ -157,8 +171,44 @@ public class Main {
 			startMe();
 			return true;
 		}
-		unPrivedExec(command, sourceChan);
+		unPrivedExec(tempLine, command, sourceChan, sourceNick);
 		return false;
+	}
+	
+	static boolean listAllInfo(String sourceNick) {
+		try {
+			System.err.println(" >>> Listing all known info");
+			sendToIRC("PRIVMSG " + sourceNick
+					+ " :Here's a list of everything I have: \r\n");
+			for (String s : openFile()) {
+				sendToIRC("PRIVMSG " + sourceNick + " :" + s);
+			}
+			return true;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return false;
+	}
+	
+	static ArrayList<String> openFile() {
+		ArrayList<String> al = new ArrayList<String>();
+		try {
+			Scanner sc = new Scanner(new FileInputStream(FILE));
+			while (sc.hasNextLine()) {
+				String tempLine = sc.nextLine();
+				al.add(tempLine.substring(0, tempLine.indexOf(";;;")));
+			}
+		} catch (FileNotFoundException e) {
+			try {
+				(new File(FILE)).createNewFile();
+			} catch (Exception e2) {
+				e2.printStackTrace();
+			}
+			return openFile();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return al;
 	}
 	
 	static boolean sendVersion(String sourceChan) {
